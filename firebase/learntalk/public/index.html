@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fun Flip Flashcards</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #fffae5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+        h1 {
+            color: #ff6600;
+            font-size: 26px;
+        }
+        .flashcards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            justify-items: center;
+            padding: 10px;
+        }
+        .card {
+            width: 120px;
+            height: 160px;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .card-front {
+            background-color: #ffcc00;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+            background-color: #fff;
+        }
+        .card-back img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .nav-buttons {
+            margin-top: 20px;
+        }
+        .nav-buttons button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #ff6600;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .nav-buttons button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fun Flip Flashcards</h1>
+        <div id="flashcard-container" class="flashcards"></div>
+        <div class="nav-buttons">
+            <button id="prev-btn" onclick="changePage(-1)" disabled>Previous</button>
+            <button id="next-btn" onclick="changePage(1)">Next</button>
+        </div>
+    </div>
+
+    <script>
+        const flashcards = [
+            { word: "Apple", image: "https://github.com/Augsrock/flashcard/blob/main/assets/apple.PNG?raw=true" },
+            { word: "Ball", image: "ball.png" },
+            { word: "Car", image: "car.png" },
+            { word: "Dog", image: "dog.png" },
+            { word: "Elephant", image: "elephant.png" },
+            { word: "Fish", image: "fish.png" },
+            { word: "Giraffe", image: "giraffe.png" },
+            { word: "Hat", image: "hat.png" },
+            { word: "Ice Cream", image: "icecream.png" },
+            { word: "Juice", image: "juice.png" },
+            { word: "Kite", image: "kite.png" },
+            { word: "Lion", image: "lion.png" }
+        ];
+
+        const cardsPerPage = 6;
+        let currentPage = 0;
+
+        function renderFlashcards() {
+            const container = document.getElementById("flashcard-container");
+            container.innerHTML = "";
+            
+            const start = currentPage * cardsPerPage;
+            const end = start + cardsPerPage;
+            const pageCards = flashcards.slice(start, end);
+
+            container.style.justifyContent = pageCards.length < cardsPerPage ? "center" : "";
+
+            pageCards.forEach(card => {
+                const cardElement = document.createElement("div");
+                cardElement.classList.add("card");
+                cardElement.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-front">${card.word}</div>
+                        <div class="card-back"><img src="${card.image}" alt="${card.word}"></div>
+                    </div>
+                `;
+                cardElement.addEventListener("click", () => flipCard(cardElement, card.word));
+                container.appendChild(cardElement);
+            });
+
+            document.getElementById("prev-btn").disabled = currentPage === 0;
+            document.getElementById("next-btn").disabled = end >= flashcards.length;
+        }
+
+        function flipCard(cardElement, word) {
+            cardElement.classList.toggle("flipped");
+            speak(word);
+        }
+
+        function speak(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            let voices = window.speechSynthesis.getVoices();
+
+            if (voices.length === 0) {
+                window.speechSynthesis.onvoiceschanged = () => speak(text);
+                return;
+            }
+
+            speech.voice = voices.find(v => v.name.includes("Female")) || 
+                           voices.find(v => v.name.includes("Google UK English Female"));
+
+            speech.lang = "en-US";
+            speech.rate = 1.0;
+            speech.pitch = 1.2;
+            window.speechSynthesis.speak(speech);
+        }
+
+        function changePage(direction) {
+            currentPage += direction;
+            renderFlashcards();
+        }
+
+        window.onload = () => {
+            window.speechSynthesis.onvoiceschanged = () => {};
+            renderFlashcards();
+        };
+    </script>
+</body>
+</html>

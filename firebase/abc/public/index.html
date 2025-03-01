@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300;700&display=swap" rel="stylesheet">
+    <title>ABC Matching Game</title>
+    <style>
+        body {
+            font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+            text-align: center;
+            background-color: #ffe4e1;
+        }
+        h2 {
+            color: #ff69b4;
+            font-size: 28px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .letters, .words {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px;
+        }
+        .item {
+            padding: 15px;
+            margin: 10px;
+            border-radius: 10px;
+            border: 2px solid #ff1493;
+            width: 80px;
+            text-align: center;
+            cursor: grab;
+            background-color: #ffb6c1;
+            box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease-in-out;
+            touch-action: none;
+        }
+        .dropzone {
+            border: 2px dashed #ff69b4;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px;
+            width: 100px;
+            height: 40px;
+            background-color: #fff0f5;
+        }
+        .correct {
+            background-color: #98fb98 !important;
+            animation: bounce 0.5s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        #successMessage, #wrongMessage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffb6c1;
+            color: white;
+            font-size: 24px;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+		#preloader {
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			background-color: #ffe4e1; /* Match background */
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+		}
+
+		/* Loading animation */
+		.loader {
+			width: 50px;
+			height: 50px;
+			border: 5px solid #ff69b4;
+			border-top: 5px solid transparent;
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* Hide content until fully loaded */
+		#content {
+			display: none;
+			opacity: 0;
+			transition: opacity 1s ease-in-out;
+		}
+		#version {
+			position: fixed;
+			bottom: 10px;
+			right: 10px;
+			font-size: 14px;
+			color: #ff69b4;
+			font-weight: bold;
+			background-color: rgba(255, 182, 193, 0.7);
+			padding: 5px 10px;
+			border-radius: 5px;
+		}
+
+    </style>
+</head>
+<body>
+<div id="preloader">
+    <div class="loader"></div>
+</div>
+<div id="content">
+    <h2>🎉 Match the letters with the correct words! 🎈</h2>
+    <div class="container">
+        <div class="letters" id="letters"></div>
+        <div class="words" id="words"></div>
+    </div>
+    <div id="successMessage">🎉 Great Job! 🎈</div>
+    <div id="wrongMessage">❌ Wrong! Try Again. 🎈</div>
+    <audio id="successSound" preload="auto" src="https://syoklearnabc.web.app/sound/correct.mp3" type="audio/mpeg"></audio>
+	<audio id="wrongSound" preload="auto" src="https://syoklearnabc.web.app/sound/wrong.mp3" type="audio/mpeg"></audio>
+	<div id="version">Version 1.0</div>
+</div>
+    <script>
+        const levels = [
+            { letters: ['A', 'B', 'C'], words: { 'A': 'Apple 🍎', 'B': 'Banana 🍌', 'C': 'Cat 🐱' } },
+            { letters: ['D', 'E', 'F'], words: { 'D': 'Dog 🐶', 'E': 'Elephant 🐘', 'F': 'Fish 🐟' } },
+            { letters: ['G', 'H', 'I'], words: { 'G': 'Grape 🍇', 'H': 'Horse 🐴', 'I': 'Ice ❄️' } },
+            { letters: ['J', 'K', 'L'], words: { 'J': 'Jam 🍓', 'K': 'Kangaroo 🦘', 'L': 'Lemon 🍋' } },
+            { letters: ['M', 'N', 'O'], words: { 'M': 'Monkey 🐵', 'N': 'Nest 🏡', 'O': 'Orange 🍊' } },
+            { letters: ['P', 'Q', 'R'], words: { 'P': 'Penguin 🐧', 'Q': 'Queen 👑', 'R': 'Rainbow 🌈' } },
+            { letters: ['S', 'T', 'U'], words: { 'S': 'Sun ☀️', 'T': 'Tiger 🐯', 'U': 'Umbrella ☂️' } },
+            { letters: ['V', 'W', 'X'], words: { 'V': 'Violin 🎻', 'W': 'Whale 🐋', 'X': 'Xylophone 🎵' } },
+            { letters: ['Y', 'Z'], words: { 'Y': 'Yogurt 🍦', 'Z': 'Zebra 🦓' } }
+        ];
+        let currentLevel = 0;
+        let draggedElement = null;
+        let startX = 0, startY = 0;
+
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function loadLevel(level) {
+            const letterContainer = document.getElementById('letters');
+            const wordContainer = document.getElementById('words');
+            letterContainer.innerHTML = '';
+            wordContainer.innerHTML = '';
+
+            shuffleArray(level.letters).forEach(letter => {
+                const letterDiv = document.createElement('div');
+                letterDiv.classList.add('item');
+                letterDiv.textContent = letter;
+                letterDiv.setAttribute('draggable', true);
+                letterDiv.setAttribute('data-letter', letter);
+                letterDiv.addEventListener('dragstart', dragStart);
+                letterDiv.addEventListener('touchstart', touchStart);
+                letterContainer.appendChild(letterDiv);
+            });
+
+            shuffleArray(Object.entries(level.words)).forEach(([letter, word]) => {
+                const wordDiv = document.createElement('div');
+                wordDiv.classList.add('dropzone');
+                wordDiv.setAttribute('data-match', letter);
+                wordDiv.textContent = word;
+                wordDiv.addEventListener('dragover', dragOver);
+                wordDiv.addEventListener('drop', drop);
+                wordDiv.addEventListener('touchend', touchDrop);
+                wordContainer.appendChild(wordDiv);
+            });
+        }
+
+        function dragStart(e) {
+            e.dataTransfer.setData('text', e.target.getAttribute('data-letter'));
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const letter = e.dataTransfer.getData('text');
+            handleDrop(e.target, letter);
+        }
+
+        function touchStart(e) {
+            draggedElement = e.target;
+            draggedElement.style.transition = "none";
+
+            const touch = e.touches[0];
+            startX = touch.clientX - draggedElement.offsetLeft;
+            startY = touch.clientY - draggedElement.offsetTop;
+
+            document.addEventListener("touchmove", touchMove);
+            document.addEventListener("touchend", touchEnd);
+        }
+
+        function touchMove(e) {
+            if (!draggedElement) return;
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            draggedElement.style.position = "absolute";
+            draggedElement.style.left = `${touch.clientX - startX}px`;
+            draggedElement.style.top = `${touch.clientY - startY}px`;
+        }
+
+        function touchEnd(e) {
+            document.removeEventListener("touchmove", touchMove);
+            document.removeEventListener("touchend", touchEnd);
+
+            const dropzones = document.querySelectorAll(".dropzone");
+            let dropped = false;
+
+            dropzones.forEach((zone) => {
+                const rect = zone.getBoundingClientRect();
+                const touch = e.changedTouches[0];
+
+                if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                    touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                    handleDrop(zone, draggedElement.getAttribute('data-letter'));
+                    dropped = true;
+                }
+            });
+
+            if (!dropped) {
+                draggedElement.style.transition = "transform 0.3s ease";
+                draggedElement.style.transform = "translate(0, 0)";
+            }
+
+            draggedElement = null;
+        }
+
+        function touchDrop(e) {
+            if (draggedElement) {
+                const letter = draggedElement.getAttribute('data-letter');
+                handleDrop(e.target, letter);
+            }
+        }
+
+        function handleDrop(target, letter) {
+            if (target.getAttribute('data-match') === letter) {
+                target.textContent = letter;
+                target.classList.add('correct');
+                document.querySelector(`[data-letter="${letter}"]`).style.display = 'none';
+                playSound('success');
+                showPopup('successMessage');
+				checkLevelComplete();
+            } else {
+                playSound('wrong');
+                showPopup('wrongMessage');
+            }
+        }
+
+        function playSound(type) {
+            const sound = document.getElementById(type === 'success' ? 'successSound' : 'wrongSound');
+            sound.currentTime = 0;
+            sound.play();
+        }
+
+        function showPopup(id) {
+            const message = document.getElementById(id);
+            message.style.display = 'block';
+            setTimeout(() => message.style.display = 'none', 1500);
+        }
+		
+		function checkLevelComplete() {
+            if (document.querySelectorAll('.item:not([style*="display: none"])').length === 0) {
+                setTimeout(() => {
+                    if (currentLevel < levels.length - 1) {
+                        currentLevel++;
+                        loadLevel(levels[currentLevel]);
+                    } else {
+                        alert('🎉 Hooray! You completed all levels! 🎊');
+						//location.reload(true);
+                    }
+                }, 1000);
+            }
+        }
+
+        loadLevel(levels[currentLevel]);
+		
+		window.addEventListener("load", function () {
+			// Show content with fade-in effect
+			const content = document.getElementById("content");
+			content.style.display = "block";
+			setTimeout(() => {
+				content.style.opacity = "1";
+				document.getElementById("preloader").style.display = "none";
+			}, 1000); // Small delay for smooth fade-in
+		});
+    </script>
+</body>
+</html>
